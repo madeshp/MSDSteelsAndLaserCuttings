@@ -704,3 +704,63 @@ if ('serviceWorker' in navigator) {
         // navigator.serviceWorker.register('/sw.js');
     });
 }
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  const imageFilenames = [
+    "82.png",
+    "83.png",
+    "84.png",
+    "85.png",
+    "86.png",
+	"87.png",
+	"88.png",
+	"89.png",
+	"artistic-design.jpg",
+	"workshop.jpg",
+	"intricate-pattern.jpg",
+	"custom-fabrication.jpg",
+	"architectural.JPG"
+    // Add or remove filenames based on your /images folder
+  ];
+
+  const galleryContainer = document.getElementById("galleryContainer");
+  const loadingIndicator = document.getElementById("galleryLoading");
+
+  // Remove loading spinner
+  if (loadingIndicator) {
+    loadingIndicator.remove();
+  }
+
+  imageFilenames.forEach((filename) => {
+    const item = document.createElement("div");
+    item.className = "gallery-item";
+
+    const img = document.createElement("img");
+    img.src = "images/" + filename;
+    img.className = "gallery-img";
+    img.alt = filename;
+
+    const name = document.createElement("div");
+    name.className = "gallery-name";
+    name.textContent = filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+
+    item.appendChild(img);
+    item.appendChild(name);
+    galleryContainer.appendChild(item);
+  });
+
+  // Optional: Scroll left/right buttons
+  const scrollLeft = document.getElementById("scrollLeft");
+  const scrollRight = document.getElementById("scrollRight");
+
+  if (scrollLeft && scrollRight && galleryContainer) {
+    scrollLeft.addEventListener("click", () => {
+      galleryContainer.scrollBy({ left: -300, behavior: "smooth" });
+    });
+
+    scrollRight.addEventListener("click", () => {
+      galleryContainer.scrollBy({ left: 300, behavior: "smooth" });
+    });
+  }
+});
