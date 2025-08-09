@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', function() {
     initFormHandling();
     initGallery();
     initAnimations();
+    initIntersectionObserver();
+    initModernFeatures();
 });
 
 // Navigation functionality
@@ -177,9 +179,9 @@ function createScrollToTopButton() {
     });
 }
 
-// Form handling
+// Enhanced Form handling
 function initFormHandling() {
-    const contactForm = document.querySelector('.form');
+    const contactForm = document.getElementById('contactForm');
     
     if (contactForm) {
         contactForm.addEventListener('submit', function(e) {
@@ -187,8 +189,10 @@ function initFormHandling() {
             handleFormSubmission(this);
         });
 
-        // Add real-time validation
+        // Add real-time validation for all form inputs
         const formInputs = contactForm.querySelectorAll('.form-input');
+        const checkbox = contactForm.querySelector('#agreement');
+        
         formInputs.forEach(input => {
             input.addEventListener('blur', function() {
                 validateField(this);
@@ -196,14 +200,33 @@ function initFormHandling() {
             
             input.addEventListener('input', function() {
                 clearFieldError(this);
+                if (this.classList.contains('success') || this.classList.contains('error')) {
+                    validateField(this);
+                }
             });
         });
+        
+        // Handle checkbox validation
+        if (checkbox) {
+            checkbox.addEventListener('change', function() {
+                validateField(this);
+            });
+        }
+        
+        // Character counter for message field
+        const messageField = contactForm.querySelector('#message');
+        if (messageField) {
+            addCharacterCounter(messageField);
+        }
     }
 }
 
-// Handle form submission
+// Enhanced form submission handler
 function handleFormSubmission(form) {
-    const submitBtn = form.querySelector('button[type="submit"]');
+    const submitBtn = form.querySelector('#submitBtn');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnLoader = submitBtn.querySelector('.btn-loader');
+    const formSuccess = form.querySelector('#formSuccess');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     
@@ -218,97 +241,198 @@ function handleFormSubmission(form) {
     });
     
     if (!isValid) {
-        showNotification('Please fill in all required fields correctly.', 'error');
+        // Scroll to first error
+        const firstError = form.querySelector('.form-input.error');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstError.focus();
+        }
         return;
     }
     
     // Show loading state
-    const originalText = submitBtn.textContent;
-    submitBtn.textContent = 'Sending...';
     submitBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoader.style.display = 'flex';
     
     // Simulate form submission (replace with actual endpoint)
     setTimeout(() => {
+        // Hide form and show success message
+        form.style.display = 'none';
+        formSuccess.style.display = 'block';
+        
+        // Reset button for potential retry
+        submitBtn.disabled = false;
+        btnText.style.display = 'flex';
+        btnLoader.style.display = 'none';
+        
         // Reset form
         form.reset();
         
-        // Reset button
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-        
-        // Show success message
-        showNotification('Thank you! Your message has been sent successfully. We will get back to you soon.', 'success');
+        // Clear all validation states
+        const allInputs = form.querySelectorAll('.form-input');
+        allInputs.forEach(input => {
+            input.classList.remove('error', 'success');
+        });
         
         console.log('Form submitted with data:', data);
+        
+        // Optional: Hide success message and show form again after some time
+        setTimeout(() => {
+            formSuccess.style.display = 'none';
+            form.style.display = 'block';
+        }, 10000);
+        
     }, 2000);
 }
 
-// Field validation
+// Enhanced field validation
 function validateField(field) {
     const value = field.value.trim();
+    const fieldName = field.getAttribute('name');
     let isValid = true;
     let errorMessage = '';
     
-    // Check if required field is empty
-    if (field.hasAttribute('required') && !value) {
-        errorMessage = 'This field is required.';
-        isValid = false;
-    }
-    
-    // Email validation
-    if (field.type === 'email' && value) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(value)) {
-            errorMessage = 'Please enter a valid email address.';
+    // Handle checkbox validation
+    if (field.type === 'checkbox') {
+        if (field.hasAttribute('required') && !field.checked) {
+            errorMessage = 'You must agree to the terms and conditions.';
             isValid = false;
+        }
+    } else {
+        // Check if required field is empty
+        if (field.hasAttribute('required') && !value) {
+            errorMessage = getRequiredMessage(fieldName);
+            isValid = false;
+        }
+        
+        // Specific field validations
+        if (value && isValid) {
+            switch (fieldName) {
+                case 'name':
+                    if (value.length < 2) {
+                        errorMessage = 'Name must be at least 2 characters long.';
+                        isValid = false;
+                    } else if (!/^[a-zA-Z\s\-'\.]+$/.test(value)) {
+                        errorMessage = 'Name can only contain letters, spaces, hyphens, and apostrophes.';
+                        isValid = false;
+                    }
+                    break;
+                    
+                case 'email':
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(value)) {
+                        errorMessage = 'Please enter a valid email address.';
+                        isValid = false;
+                    }
+                    break;
+                    
+                case 'phone':
+                    const phoneRegex = /^[\+]?[\d\s\-\(\)\.]{10,}$/;
+                    if (!phoneRegex.test(value)) {
+                        errorMessage = 'Please enter a valid phone number (minimum 10 digits).';
+                        isValid = false;
+                    }
+                    break;
+                    
+                case 'message':
+                    if (value.length < 20) {
+                        errorMessage = 'Message must be at least 20 characters long.';
+                        isValid = false;
+                    }
+                    break;
+            }
         }
     }
     
-    // Phone validation
-    if (field.type === 'tel' && value) {
-        const phoneRegex = /^[\d\s\-\+\(\)]+$/;
-        if (!phoneRegex.test(value)) {
-            errorMessage = 'Please enter a valid phone number.';
-            isValid = false;
-        }
-    }
-    
-    // Show/hide error
+    // Show/hide error and apply styling
     if (!isValid) {
         showFieldError(field, errorMessage);
     } else {
         clearFieldError(field);
+        if (value || field.type === 'checkbox') {
+            field.classList.add('success');
+        }
     }
     
     return isValid;
 }
 
-// Show field error
+// Get appropriate required message for field
+function getRequiredMessage(fieldName) {
+    const messages = {
+        'name': 'Please enter your full name.',
+        'email': 'Please enter your email address.',
+        'service': 'Please select a service.',
+        'message': 'Please describe your project.',
+        'agreement': 'You must agree to the terms and conditions.'
+    };
+    return messages[fieldName] || 'This field is required.';
+}
+
+// Show field error with new structure
 function showFieldError(field, message) {
     clearFieldError(field);
     
-    field.style.borderColor = '#ef4444';
+    field.classList.add('error');
+    field.classList.remove('success');
     
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'field-error';
-    errorDiv.textContent = message;
-    errorDiv.style.cssText = `
-        color: #ef4444;
-        font-size: 0.875rem;
-        margin-top: 0.25rem;
-        display: block;
-    `;
+    const fieldName = field.getAttribute('name');
+    const errorElement = document.getElementById(fieldName + 'Error');
     
-    field.parentNode.appendChild(errorDiv);
+    if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.classList.add('show');
+    }
 }
 
-// Clear field error
+// Clear field error with new structure
 function clearFieldError(field) {
-    field.style.borderColor = '#e5e7eb';
-    const existingError = field.parentNode.querySelector('.field-error');
-    if (existingError) {
-        existingError.remove();
+    field.classList.remove('error');
+    
+    const fieldName = field.getAttribute('name');
+    const errorElement = document.getElementById(fieldName + 'Error');
+    
+    if (errorElement) {
+        errorElement.textContent = '';
+        errorElement.classList.remove('show');
     }
+}
+
+// Add character counter to textarea
+function addCharacterCounter(textarea) {
+    const minLength = 20;
+    const maxLength = 1000;
+    
+    // Create counter element
+    const counter = document.createElement('div');
+    counter.className = 'character-counter';
+    counter.style.cssText = `
+        font-size: 0.75rem;
+        color: var(--gray-500);
+        text-align: right;
+        margin-top: 0.25rem;
+    `;
+    
+    textarea.parentNode.appendChild(counter);
+    
+    // Update counter
+    function updateCounter() {
+        const length = textarea.value.length;
+        counter.textContent = `${length}/${maxLength} characters`;
+        
+        if (length < minLength) {
+            counter.style.color = 'var(--error-color)';
+        } else if (length > maxLength - 50) {
+            counter.style.color = 'var(--warning-color)';
+        } else {
+            counter.style.color = 'var(--success-color)';
+        }
+    }
+    
+    textarea.addEventListener('input', updateCounter);
+    textarea.setAttribute('maxlength', maxLength);
+    updateCounter();
 }
 
 // Notification system
@@ -376,251 +500,105 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 
-// Gallery functionality
+// Modern Gallery with Lightbox functionality
 function initGallery() {
-    const galleryItems = document.querySelectorAll('.gallery-item');
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImage = document.getElementById('lightboxImage');
+    const lightboxTitle = document.getElementById('lightboxTitle');
+    const lightboxDescription = document.getElementById('lightboxDescription');
+    const lightboxClose = document.getElementById('lightboxClose');
+    const lightboxBackdrop = document.getElementById('lightboxBackdrop');
     
-    galleryItems.forEach((item, index) => {
-        item.addEventListener('click', function() {
-            openLightbox(index);
+    // Initialize gallery buttons
+    const galleryButtons = document.querySelectorAll('.gallery-btn');
+    
+    galleryButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const image = button.getAttribute('data-image');
+            const title = button.getAttribute('data-title');
+            const description = button.getAttribute('data-description');
+            
+            openLightbox(image, title, description);
         });
     });
-}
-
-// Lightbox functionality
-function openLightbox(index) {
-    const galleryItems = document.querySelectorAll('.gallery-item');
-    const images = Array.from(galleryItems).map(item => {
-        const img = item.querySelector('.gallery-img');
-        const overlay = item.querySelector('.gallery-overlay');
-        return {
-            src: img.src,
-            alt: img.alt,
-            title: overlay.querySelector('h3').textContent,
-            description: overlay.querySelector('p').textContent
-        };
-    });
     
-    createLightbox(images, index);
-}
-
-// Create lightbox
-function createLightbox(images, currentIndex) {
-    const lightbox = document.createElement('div');
-    lightbox.className = 'lightbox';
-    lightbox.innerHTML = `
-        <div class="lightbox-content">
-            <button class="lightbox-close" aria-label="Close lightbox">&times;</button>
-            <button class="lightbox-prev" aria-label="Previous image">&#8249;</button>
-            <button class="lightbox-next" aria-label="Next image">&#8250;</button>
-            <div class="lightbox-image-container">
-                <img class="lightbox-image" src="" alt="">
-                <div class="lightbox-info">
-                    <h3 class="lightbox-title"></h3>
-                    <p class="lightbox-description"></p>
-                </div>
-            </div>
-            <div class="lightbox-counter"></div>
-        </div>
-    `;
-    
-    // Add lightbox styles
-    const styles = `
-        .lightbox {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        
-        .lightbox.active {
-            opacity: 1;
-        }
-        
-        .lightbox-content {
-            position: relative;
-            max-width: 90vw;
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        
-        .lightbox-image-container {
-            position: relative;
-            text-align: center;
-        }
-        
-        .lightbox-image {
-            max-width: 100%;
-            max-height: 70vh;
-            object-fit: contain;
-            border-radius: 0.5rem;
-        }
-        
-        .lightbox-info {
-            color: white;
-            padding: 1rem;
-            text-align: center;
-        }
-        
-        .lightbox-title {
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-            color: white;
-        }
-        
-        .lightbox-description {
-            color: #cbd5e1;
-            margin: 0;
-        }
-        
-        .lightbox-close,
-        .lightbox-prev,
-        .lightbox-next {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: white;
-            font-size: 2rem;
-            cursor: pointer;
-            padding: 0.5rem;
-            border-radius: 50%;
-            transition: background 0.3s ease;
-            z-index: 10001;
-        }
-        
-        .lightbox-close {
-            top: 1rem;
-            right: 1rem;
-            width: 3rem;
-            height: 3rem;
-        }
-        
-        .lightbox-prev {
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 3rem;
-            height: 3rem;
-        }
-        
-        .lightbox-next {
-            right: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 3rem;
-            height: 3rem;
-        }
-        
-        .lightbox-close:hover,
-        .lightbox-prev:hover,
-        .lightbox-next:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-        
-        .lightbox-counter {
-            color: white;
-            margin-top: 1rem;
-            font-size: 0.875rem;
-        }
-        
-        @media (max-width: 768px) {
-            .lightbox-prev,
-            .lightbox-next {
-                display: none;
-            }
-        }
-    `;
-    
-    // Add styles if not already added
-    if (!document.querySelector('#lightbox-styles')) {
-        const styleSheet = document.createElement('style');
-        styleSheet.id = 'lightbox-styles';
-        styleSheet.textContent = styles;
-        document.head.appendChild(styleSheet);
+    // Lightbox controls
+    if (lightboxClose) {
+        lightboxClose.addEventListener('click', closeLightbox);
     }
     
-    document.body.appendChild(lightbox);
-    document.body.style.overflow = 'hidden';
-    
-    let current = currentIndex;
-    
-    function updateLightbox() {
-        const img = lightbox.querySelector('.lightbox-image');
-        const title = lightbox.querySelector('.lightbox-title');
-        const description = lightbox.querySelector('.lightbox-description');
-        const counter = lightbox.querySelector('.lightbox-counter');
-        
-        img.src = images[current].src;
-        img.alt = images[current].alt;
-        title.textContent = images[current].title;
-        description.textContent = images[current].description;
-        counter.textContent = `${current + 1} / ${images.length}`;
+    if (lightboxBackdrop) {
+        lightboxBackdrop.addEventListener('click', closeLightbox);
     }
     
-    function closeLightbox() {
-        lightbox.classList.remove('active');
-        document.body.style.overflow = '';
-        setTimeout(() => {
-            if (lightbox.parentNode) {
-                lightbox.parentNode.removeChild(lightbox);
-            }
-        }, 300);
-    }
-    
-    function nextImage() {
-        current = (current + 1) % images.length;
-        updateLightbox();
-    }
-    
-    function prevImage() {
-        current = (current - 1 + images.length) % images.length;
-        updateLightbox();
-    }
-    
-    // Event listeners
-    lightbox.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
-    lightbox.querySelector('.lightbox-next').addEventListener('click', nextImage);
-    lightbox.querySelector('.lightbox-prev').addEventListener('click', prevImage);
-    
-    lightbox.addEventListener('click', function(e) {
-        if (e.target === lightbox) {
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && lightbox && lightbox.classList.contains('active')) {
             closeLightbox();
         }
     });
     
-    // Keyboard navigation
-    document.addEventListener('keydown', function(e) {
-        if (!lightbox.parentNode) return;
-        
-        switch(e.key) {
-            case 'Escape':
-                closeLightbox();
-                break;
-            case 'ArrowRight':
-                nextImage();
-                break;
-            case 'ArrowLeft':
-                prevImage();
-                break;
+    function openLightbox(imageSrc, title, description) {
+        if (lightbox && lightboxImage && lightboxTitle && lightboxDescription) {
+            lightboxImage.src = imageSrc;
+            lightboxImage.alt = title;
+            lightboxTitle.textContent = title;
+            lightboxDescription.textContent = description;
+            
+            lightbox.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // Focus management for accessibility
+            if (lightboxClose) {
+                lightboxClose.focus();
+            }
         }
+    }
+    
+    function closeLightbox() {
+        if (lightbox) {
+            lightbox.classList.remove('active');
+            document.body.style.overflow = '';
+            
+            // Clear image src to stop loading
+            if (lightboxImage) {
+                lightboxImage.src = '';
+            }
+        }
+    }
+    
+    // Add click handlers for placeholder items
+    const placeholderItems = document.querySelectorAll('.gallery-placeholder');
+    placeholderItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // Scroll to contact section
+            const contactSection = document.getElementById('contact');
+            if (contactSection) {
+                contactSection.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
     });
     
-    // Initialize and show
-    updateLightbox();
-    setTimeout(() => {
-        lightbox.classList.add('active');
-    }, 100);
+    // Enhanced image loading with error handling
+    const galleryImages = document.querySelectorAll('.gallery-img');
+    galleryImages.forEach(img => {
+        img.addEventListener('load', function() {
+            this.classList.add('loaded');
+        });
+        
+        img.addEventListener('error', function() {
+            this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIiBmaWxsPSIjOTk5Ij5JbWFnZSBub3QgZm91bmQ8L3RleHQ+PC9zdmc+';
+            this.alt = 'Image not found';
+        });
+    });
 }
+
+// Legacy lightbox code removed - now using modern implementation
+
+// Old lightbox code removed - using modern HTML-based lightbox
 
 // Animation effects
 function initAnimations() {
@@ -764,3 +742,213 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+// Modern Intersection Observer for scroll animations
+function initIntersectionObserver() {
+    const animatedElements = document.querySelectorAll('.fade-in-up, .fade-in-left, .fade-in-right, .scale-in');
+    
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const delay = entry.target.getAttribute('data-delay') || 0;
+                
+                setTimeout(() => {
+                    entry.target.classList.add('animate');
+                }, parseInt(delay));
+                
+                observer.unobserve(entry.target);
+            }
+        });
+    }, observerOptions);
+    
+    animatedElements.forEach(el => {
+        observer.observe(el);
+    });
+}
+
+// Modern features initialization
+function initModernFeatures() {
+    // Initialize lazy loading for images
+    initLazyLoading();
+    
+    // Initialize performance optimizations
+    initPerformanceOptimizations();
+    
+    // Initialize accessibility features
+    initAccessibilityFeatures();
+    
+    // Initialize smooth interactions
+    initSmoothInteractions();
+}
+
+// Lazy loading for images
+function initLazyLoading() {
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                        img.classList.remove('lazy');
+                        imageObserver.unobserve(img);
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll('img[data-src]').forEach(img => {
+            imageObserver.observe(img);
+        });
+    }
+}
+
+// Performance optimizations
+function initPerformanceOptimizations() {
+    // Debounce scroll events
+    let scrollTimeout;
+    window.addEventListener('scroll', () => {
+        if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+        }
+        scrollTimeout = setTimeout(() => {
+            // Trigger any scroll-based calculations here
+            updateScrollIndicators();
+        }, 10);
+    });
+    
+    // Optimize animations with requestAnimationFrame
+    const animateElements = document.querySelectorAll('.animate-on-scroll');
+    if (animateElements.length > 0) {
+        let rafId;
+        const handleScroll = () => {
+            if (rafId) return;
+            rafId = requestAnimationFrame(() => {
+                // Handle scroll animations
+                rafId = null;
+            });
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+    }
+}
+
+// Update scroll indicators
+function updateScrollIndicators() {
+    const scrollProgress = (window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+    const progressBar = document.querySelector('.scroll-progress');
+    if (progressBar) {
+        progressBar.style.width = `${scrollProgress}%`;
+    }
+}
+
+// Accessibility features
+function initAccessibilityFeatures() {
+    // Add focus indicators for keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+            document.body.classList.add('keyboard-navigation');
+        }
+    });
+    
+    document.addEventListener('mousedown', () => {
+        document.body.classList.remove('keyboard-navigation');
+    });
+    
+    // Add skip link for screen readers
+    const skipLink = document.createElement('a');
+    skipLink.href = '#main-content';
+    skipLink.textContent = 'Skip to main content';
+    skipLink.className = 'skip-link';
+    skipLink.style.cssText = `
+        position: absolute;
+        top: -40px;
+        left: 6px;
+        background: var(--primary-color);
+        color: white;
+        padding: 8px;
+        text-decoration: none;
+        border-radius: 4px;
+        z-index: 10000;
+        transition: top 0.3s;
+    `;
+    
+    skipLink.addEventListener('focus', () => {
+        skipLink.style.top = '6px';
+    });
+    
+    skipLink.addEventListener('blur', () => {
+        skipLink.style.top = '-40px';
+    });
+    
+    document.body.insertBefore(skipLink, document.body.firstChild);
+}
+
+// Smooth interactions
+function initSmoothInteractions() {
+    // Add ripple effect to buttons
+    const buttons = document.querySelectorAll('.btn, .service-card, .feature');
+    
+    buttons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            const ripple = document.createElement('span');
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            ripple.style.cssText = `
+                position: absolute;
+                width: ${size}px;
+                height: ${size}px;
+                left: ${x}px;
+                top: ${y}px;
+                background: rgba(255, 255, 255, 0.3);
+                border-radius: 50%;
+                transform: scale(0);
+                animation: ripple 0.6s linear;
+                pointer-events: none;
+            `;
+            
+            // Add ripple animation if it doesn't exist
+            if (!document.querySelector('#ripple-animation')) {
+                const style = document.createElement('style');
+                style.id = 'ripple-animation';
+                style.textContent = `
+                    @keyframes ripple {
+                        to {
+                            transform: scale(4);
+                            opacity: 0;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            this.style.position = 'relative';
+            this.style.overflow = 'hidden';
+            this.appendChild(ripple);
+            
+            setTimeout(() => {
+                ripple.remove();
+            }, 600);
+        });
+    });
+    
+    // Add hover effects for interactive elements
+    const interactiveElements = document.querySelectorAll('.nav-link, .btn, .service-card');
+    
+    interactiveElements.forEach(element => {
+        element.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-1px)';
+        });
+        
+        element.addEventListener('mouseleave', function() {
+            this.style.transform = '';
+        });
+    });
+}
