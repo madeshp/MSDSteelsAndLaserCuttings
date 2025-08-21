@@ -788,23 +788,26 @@ document.addEventListener("DOMContentLoaded", () => {
     loadingIndicator.remove();
   }
 
-  imageFilenames.forEach((filename) => {
-    const item = document.createElement("div");
-    item.className = "gallery-item";
+  // Only proceed if gallery container exists
+  if (galleryContainer) {
+    imageFilenames.forEach((filename) => {
+      const item = document.createElement("div");
+      item.className = "gallery-item";
 
-    const img = document.createElement("img");
-    img.src = "images/" + filename;
-    img.className = "gallery-img";
-    img.alt = filename;
+      const img = document.createElement("img");
+      img.src = "images/" + filename;
+      img.className = "gallery-img";
+      img.alt = filename;
 
-    const name = document.createElement("div");
-    name.className = "gallery-name";
-    name.textContent = filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+      const name = document.createElement("div");
+      name.className = "gallery-name";
+      name.textContent = filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
 
-    item.appendChild(img);
-    item.appendChild(name);
-    galleryContainer.appendChild(item);
-  });
+      item.appendChild(img);
+      item.appendChild(name);
+      galleryContainer.appendChild(item);
+    });
+  }
 
   // Optional: Scroll left/right buttons
   const scrollLeft = document.getElementById("scrollLeft");
