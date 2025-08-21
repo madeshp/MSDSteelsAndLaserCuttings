@@ -221,7 +221,7 @@ function initFormHandling() {
     }
 }
 
-// Enhanced form submission handler
+// Enhanced form submission handler with email functionality
 function handleFormSubmission(form) {
     const submitBtn = form.querySelector('#submitBtn');
     const btnText = submitBtn.querySelector('.btn-text');
@@ -255,35 +255,113 @@ function handleFormSubmission(form) {
     btnText.style.display = 'none';
     btnLoader.style.display = 'flex';
     
-    // Simulate form submission (replace with actual endpoint)
-    setTimeout(() => {
-        // Hide form and show success message
-        form.style.display = 'none';
-        formSuccess.style.display = 'block';
+    // Send email via PHP backend
+    fetch('send-email.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Hide form and show success message
+            form.style.display = 'none';
+            formSuccess.style.display = 'block';
+            
+            // Update success message with server response
+            const successText = formSuccess.querySelector('p');
+            if (successText) {
+                successText.innerHTML = '<strong>Thank you!</strong> ' + result.message;
+            }
+            
+            // Show success notification
+            showNotification(result.message, 'success');
+            
+            // Reset form
+            form.reset();
+            
+            // Clear all validation states
+            const allInputs = form.querySelectorAll('.form-input');
+            allInputs.forEach(input => {
+                input.classList.remove('error', 'success');
+            });
+            
+            console.log('Form submitted successfully:', data);
+            
+            // Optional: Hide success message and show form again after some time
+            setTimeout(() => {
+                formSuccess.style.display = 'none';
+                form.style.display = 'block';
+            }, 15000);
+            
+        } else {
+            throw new Error(result.message || 'Failed to send email');
+        }
+    })
+    .catch(error => {
+        console.error('Form submission error:', error);
         
-        // Reset button for potential retry
+        // Show error notification
+        showNotification('Sorry, there was an error sending your request. Please try again or contact us directly at info@msdsteel.com', 'error');
+        
+        // Show error message in form
+        showFormError(form, error.message || 'There was an error sending your request. Please try again.');
+    })
+    .finally(() => {
+        // Reset button state
         submitBtn.disabled = false;
         btnText.style.display = 'flex';
         btnLoader.style.display = 'none';
-        
-        // Reset form
-        form.reset();
-        
-        // Clear all validation states
-        const allInputs = form.querySelectorAll('.form-input');
-        allInputs.forEach(input => {
-            input.classList.remove('error', 'success');
-        });
-        
-        console.log('Form submitted with data:', data);
-        
-        // Optional: Hide success message and show form again after some time
-        setTimeout(() => {
-            formSuccess.style.display = 'none';
-            form.style.display = 'block';
-        }, 10000);
-        
-    }, 2000);
+    });
+}
+
+// Show form-level error message
+function showFormError(form, message) {
+    // Remove any existing error message
+    const existingError = form.querySelector('.form-error-message');
+    if (existingError) {
+        existingError.remove();
+    }
+    
+    // Create error message element
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'form-error-message';
+    errorDiv.style.cssText = `
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #dc2626;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        font-size: 0.875rem;
+        line-height: 1.5;
+    `;
+    errorDiv.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    // Insert at the top of the form
+    const formHeader = form.querySelector('.form-header');
+    if (formHeader) {
+        formHeader.insertAdjacentElement('afterend', errorDiv);
+    } else {
+        form.insertAdjacentElement('afterbegin', errorDiv);
+    }
+    
+    // Scroll error into view
+    errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+        if (errorDiv.parentNode) {
+            errorDiv.remove();
+        }
+    }, 10000);
 }
 
 // Enhanced field validation
