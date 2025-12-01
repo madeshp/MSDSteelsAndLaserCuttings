@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Placeholder Images</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .canvas-container { margin: 20px 0; }
+        canvas { border: 2px solid #ddd; margin: 10px; }
+        .info { background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .success { background: #e8f5e8; color: #2e7d32; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        button { background: #2563eb; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #1d4ed8; }
+    </style>
+</head>
+<body>
+    <h1>🖼️ Placeholder Image Generator</h1>
+    
+    <div class="info">
+        <strong>Purpose:</strong> This tool creates placeholder images for your gallery to prevent "image not found" errors during development.
+        These are temporary images - replace them with your actual project photos later.
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="canvas" width="400" height="300"></canvas>
+    </div>
+
+    <button onclick="createAllPlaceholders()">Create All Placeholder Images</button>
+    <button onclick="downloadImage('workshop.jpg')">Create Workshop Image</button>
+    <button onclick="downloadImage('laser-cutting-industrial.jpeg')">Create Industrial Image</button>
+    <button onclick="downloadImage('precision-parts.webp')">Create Parts Image</button>
+
+    <div id="status"></div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const images = [
+            '82.png', '83.png', '84.png', '85.png', '86.png', '87.png', '88.png', '89.png',
+            'artistic-design.jpg', 'workshop.jpg', 'intricate-pattern.jpg', 
+            'custom-fabrication.jpg', 'architectural.JPG', 'laser-cutting-industrial.jpeg',
+            'precision-parts.webp'
+        ];
+
+        function createPlaceholderImage(filename) {
+            // Clear canvas
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Add gradient background
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, '#2563eb');
+            gradient.addColorStop(1, '#1d4ed8');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Add overlay pattern
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            for (let i = 0; i < canvas.width; i += 20) {
+                for (let j = 0; j < canvas.height; j += 20) {
+                    if ((i + j) % 40 === 0) {
+                        ctx.fillRect(i, j, 10, 10);
+                    }
+                }
+            }
+            
+            // Add main text
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('MSD STEEL', canvas.width / 2, canvas.height / 2 - 20);
+            
+            // Add subtitle
+            ctx.font = '16px Arial';
+            ctx.fillText('Placeholder Image', canvas.width / 2, canvas.height / 2 + 10);
+            
+            // Add filename
+            ctx.font = '12px Arial';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.fillText(filename, canvas.width / 2, canvas.height / 2 + 35);
+            
+            // Add decorative elements
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, 80, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        function downloadImage(filename) {
+            createPlaceholderImage(filename);
+            
+            // Convert canvas to blob and create download link
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showStatus(`✅ Created ${filename}`);
+            });
+        }
+
+        function createAllPlaceholders() {
+            let created = 0;
+            const total = images.length;
+            
+            showStatus(`Creating ${total} placeholder images...`);
+            
+            images.forEach((filename, index) => {
+                setTimeout(() => {
+                    downloadImage(filename);
+                    created++;
+                    
+                    if (created === total) {
+                        showStatus(`✅ All ${total} placeholder images created! Check your Downloads folder.`);
+                    }
+                }, index * 500); // Delay between downloads
+            });
+        }
+
+        function showStatus(message) {
+            const status = document.getElementById('status');
+            status.innerHTML = `<div class="success">${message}</div>`;
+        }
+
+        // Create initial preview
+        createPlaceholderImage('preview.jpg');
+    </script>
+
+    <div class="info">
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Click "Create All Placeholder Images" to generate all missing images</li>
+            <li>Your browser will download the images to your Downloads folder</li>
+            <li>Move the downloaded images to your <code>images/</code> folder</li>
+            <li>Refresh your website - the gallery errors should be gone</li>
+            <li>Replace these placeholders with real photos of your work when available</li>
+        </ol>
+    </div>
+
+    <div class="info">
+        <strong>Alternative:</strong> You can also create a simple images folder with any photos you have, 
+        or remove the unused filenames from the <code>imageFilenames</code> array in <code>main.js</code> (lines 688-702).
+    </div>
+</body>
+</html>
